@@ -1,0 +1,115 @@
+请用下面的 showSymmetryGhosts 函数替换原有函数。
+
+核心修改点
+废弃除法定位：不再用 (x - min) / width 这种除法来算你在第几列（因为有间隙，除法不准）。改为直接查表，看点击坐标落在哪个 colBounds 范围内。
+
+基于物理边界计算偏移：offsetX 不再是相对于“理想网格起点”，而是相对于当前列真实的物理左边界 (colBounds[col].minX)。
+
+精确映射：目标点的坐标 = 目标列真实的物理左边界 + offsetX。
+// --- 对称点 Ghost 显示 (修正版：基于物理边界的精确映射) ---
+const showSymmetryGhosts = (physX, physY, codeObj) => {
+  // 获取最新的布局信息（包含修正后的 colBounds/rowBounds）
+  const layout = analyzePanelLayout(); 
+  if (!layout) return;
+
+  // 1. 【修正】不再使用除法计算 col/row，而是通过物理坐标反查所在的行列
+  // 这样可以完美避开 Gap (间隙) 导致的计算偏差
+  let col = -1;
+  let row = -1;
+
+  // 查找 X 落在哪个列的物理范围内
+  // 增加少许 buffer (比如 100um) 以防点击在边缘
+  const BUFFER = 100; 
+
+  for (let c = 0; c < layout.columns; c++) {
+    const bounds = layout.colBounds[c];
+    if (bounds && physX >= bounds.minX - BUFFER && physX <= bounds.maxX + BUFFER) {
+      col = c;
+      break;
+    }
+  }
+
+  // 查找 Y 落在哪个行的物理范围内
+  for (let r = 0; r < layout.rows; r++) {
+    const bounds = layout.rowBounds[r];
+    if (bounds && physY >= bounds.minY - BUFFER && physY <= bounds.maxY + BUFFER) {
+      row = r;
+      break;
+    }
+  }
+
+  // 如果点击在了 Panel 之间的缝隙里，直接返回，不生成 Ghost
+  if (col === -1 || row === -1) return;
+
+  // 2. 【修正】计算偏移量 (Offset)
+  // 必须相对于该列 **真实的物理起始位置** 计算，而不是 (minX + col * width)
+  // 这样才能消除间隙累积带来的漂移
+  const originX = layout.colBounds[col].minX;
+  const originY = layout.rowBounds[row].minY;
+  
+  const offsetX = physX - originX;
+  const offsetY = physY - originY;
+
+  // 3. 计算对称逻辑 (逻辑层不变)
+  const { cover_x, cover_y, full_shot } = glassConfig.maskRule;
+  
+  if (cover_x === null || cover_y === null) return;
+  
+  const maskCols = cover_x || 99;
+  const maskRows = cover_y || 99;
+  const fullShot = full_shot || 1;
+  
+  const calc = new SymmetryCalculator(layout.columns, layout.rows, maskCols, maskRows, fullShot);
+  const symmetries = calc.getSymmetries(col, row);
+
+  symmetries.forEach(sym => {
+    // 4. 【修正】还原物理坐标
+    // 目标坐标 = 目标列的真实物理起点 + 原始偏移量
+    // 即使 Panel 间距不均匀，这种算法也能保证相对位置绝对精确
+    const targetBoundsX = layout.colBounds[sym.col];
+    const targetBoundsY = layout.rowBounds[sym.row];
+    
+    if (!targetBoundsX || !targetBoundsY) return; // 防御性检查
+
+    const symPhysX = targetBoundsX.minX + offsetX;
+    const symPhysY = targetBoundsY.minY + offsetY;
+
+    // 排除自己 (防止重叠显示)
+    if (Math.abs(symPhysX - physX) < 1000 && Math.abs(symPhysY - physY) < 1000) return;
+
+    const ghost = new Konva.Circle({
+      x: toScreen(symPhysX),
+      y: toScreenY(symPhysY),
+      radius: 10,
+      stroke: 'yellow',
+      strokeWidth: 2,
+      dash: [6, 4],
+      fill: 'rgba(255, 255, 0, 0.2)',
+      name: 'ghost-point',
+      listening: true,
+      // 存储元数据，点击时直接使用精确坐标
+      attrs: {
+        rawX: symPhysX,
+        rawY: symPhysY
+      }
+    });
+
+    const anim = new Konva.Animation(frame => {
+      const s = 1 + Math.sin(frame.time * 0.006) * 0.2;
+      ghost.scale({x: s, y: s});
+    }, hintLayer);
+    anim.start();
+
+    ghost.on('click tap', () => {
+      anim.stop();
+      ghost.destroy();
+      // 使用精确计算的物理坐标，而不是重新反算
+      addDefect(ghost.attrs.rawX, ghost.attrs.rawY, codeObj, true);
+      hintLayer.draw();
+    });
+
+    hintLayer.add(ghost);
+  });
+  
+  hintLayer.draw();
+}

@@ -1,0 +1,33 @@
+# Web框架
+fastapi==0.104.1
+uvicorn==0.24.0
+gunicorn==21.2.0
+python-multipart==0.0.6
+
+# 数据库
+sqlalchemy==2.0.34
+pydantic[email]==1.10.15
+cx_Oracle==8.3.0  # Oracle驱动，使用SQLite时可以注释掉
+
+# 几何计算库
+shapely==2.0.6
+
+# SQLite不需要额外的数据库驱动包
+
+# 工具类
+python-dotenv==1.0.0
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-magic==0.4.27
+python-dateutil==2.8.2
+pytz==2023.3.post1
+
+# CORS支持
+httpx==0.25.2
+aiofiles==23.2.1
+
+# 测试工具
+pytest==7.4.4
+pytest-cov==4.1.0
+pytest-asyncio==0.23.2
+httpx==0.25.2
