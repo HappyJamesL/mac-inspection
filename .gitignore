@@ -36,6 +36,7 @@ backend/backend.tar.gz
 venv/
 .venv/
 .venv39/
+venv39/
 .env/
 __pycache__/
 *.pyc

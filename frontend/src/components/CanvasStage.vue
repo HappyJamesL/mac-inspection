@@ -25,7 +25,8 @@ const props = defineProps({
   currentDefects: { type: Array, default: () => [] },
   selectedProductId: { type: String, default: '' },
   defectCodes: { type: Array, default: () => [] },
-  readonly: { type: Boolean, default: false }
+  readonly: { type: Boolean, default: false },
+  currentGlassId: { type: String, default: '' }
 })
 
 const emit = defineEmits(['add-defect', 'update-defects', 'layout-status-change'])
@@ -942,7 +943,7 @@ const handleStageUp = () => {
   }
 
   const defect = {
-    uid: Date.now(),
+    uuid: `defect-${Date.now()}`,
     type: code.type,
     code: code.id,
     codeName: code.name,
@@ -963,7 +964,7 @@ const addDefect = (x, y, code, isSym) => {
   if (props.readonly) return;
   
   const defect = {
-    uid: Date.now(),
+    uuid: `defect-${Date.now()}`,
     x, y,
     code: code.id,
     codeName: code.name,
@@ -1091,10 +1092,10 @@ const loadPanelData = async () => {
   loading.value = true;
   try {
     const data = await getProductLayout(props.selectedProductId);
-  // 添加默认值，确保玻璃尺寸始终有效
-  glassConfig.size = data.glass_size || { w: 920000, h: 730000 };
-  glassConfig.panels = data.panels || [];
-  glassConfig.maskRule = data.mask_rule || { cover_x: 5, cover_y: 6, full_shot: 1 };
+    // 添加默认值，确保玻璃尺寸始终有效
+    glassConfig.size = data.glass_size || { w: 920000, h: 730000 };
+    glassConfig.panels = data.panels || [];
+    glassConfig.maskRule = data.mask_rule || { cover_x: 5, cover_y: 6, full_shot: 1 };
     
     nextTick(() => {
       initStage();
@@ -1104,6 +1105,7 @@ const loadPanelData = async () => {
       emit('layout-status-change', glassConfig.panels.length > 0);
     });
   } catch(e) {
+    console.error('Failed to load panel data:', e);
   } finally {
     loading.value = false;
   }
@@ -1111,6 +1113,23 @@ const loadPanelData = async () => {
 
 watch(() => props.selectedProductId, loadPanelData);
 watch(() => props.currentDefects, redrawVisibleDefects, { deep: true });
+
+// 监听selectedCode变化，清除对称点提示
+watch(() => props.selectedCode, () => {
+  if (hintLayer) {
+    hintLayer.destroyChildren();
+    hintLayer.draw();
+  }
+}, { immediate: false });
+
+// 监听currentGlassId变化，清除对称点提示
+watch(() => props.currentGlassId, () => {
+  if (hintLayer) {
+    hintLayer.destroyChildren();
+    hintLayer.draw();
+  }
+}, { immediate: false });
+
 onMounted(() => {
   if (props.selectedProductId) loadPanelData();
   window.addEventListener('resize', initStage);

@@ -45,18 +45,10 @@ class Settings(BaseSettings):
     def DATABASE_URL(self) -> str:
         """根据数据库类型动态生成连接URL"""
         if self.DATABASE_TYPE == "oracle":
-            return f"oracle+cx_oracle://{self.ORACLE_USER}:{self.ORACLE_PASSWORD}@{self.ORACLE_HOST}:{self.ORACLE_PORT}/{self.ORACLE_SERVICE_NAME}?encoding=UTF-8&nencoding=UTF-8"
+            return f"oracle+cx_oracle://{self.ORACLE_USER}:{self.ORACLE_PASSWORD}@{self.ORACLE_HOST}:{self.ORACLE_PORT}/?service_name={self.ORACLE_SERVICE_NAME}&encoding=UTF-8&nencoding=UTF-8"
         else:  # sqlite
             return self.SQLITE_URL
-    
-    @property
-    def HISTORICAL_DATABASE_URL(self) -> str:
-        """根据数据库类型动态生成历史数据库连接URL"""
-        if self.HISTORICAL_DATABASE_TYPE == "oracle":
-            return f"oracle+cx_oracle://{self.HISTORICAL_ORACLE_USER}:{self.HISTORICAL_ORACLE_PASSWORD}@{self.HISTORICAL_ORACLE_HOST}:{self.HISTORICAL_ORACLE_PORT}/{self.HISTORICAL_ORACLE_SERVICE_NAME}?encoding=UTF-8&nencoding=UTF-8"
-        else:  # sqlite
-            return self.SQLITE_URL
-    
+   
     class Config:
         env_file = ".env"
         case_sensitive = True

@@ -13,8 +13,8 @@
                     class="bg-gray-100 border border-gray-300 rounded text-xs py-1 pr-6 pl-2 focus:border-blue-500 w-20"
                     placeholder="输入或选择"
                     @keyup.enter="onCstLotChange('cst')"
-                    @focus="hideDropdown('cst')"
-                    @blur="handleBlur('cst')"
+                    @focus="hideDropdown('cst'); isInputActive = true"
+                    @blur="handleBlur('cst'); isInputActive = false"
                     @input="filterDropdownOptions('cst')"
                 >
                 <div 
@@ -53,8 +53,8 @@
                     class="bg-gray-100 border border-gray-300 rounded text-xs py-1 pr-6 pl-2 focus:border-blue-500 w-36"
                     placeholder="输入或选择"
                     @keyup.enter="onCstLotChange('lot')"
-                    @focus="hideDropdown('lot')"
-                    @blur="handleBlur('lot')"
+                    @focus="hideDropdown('lot'); isInputActive = true"
+                    @blur="handleBlur('lot'); isInputActive = false"
                     @input="filterDropdownOptions('lot')"
                 >
                 <div 
@@ -132,7 +132,7 @@
 
         <div class="flex items-center text-xs text-gray-700">
             <span class="mr-1 font-medium">LogIn:</span>
-            <input v-model="selectedInfo.operatorId"  class="bg-gray-100 border border-gray-300 rounded text-xs py-1 px-1 focus:border-blue-500 w-20">
+            <input v-model="selectedInfo.operatorId"  class="bg-gray-100 border border-gray-300 rounded text-xs py-1 px-1 focus:border-blue-500 w-20" @focus="isInputActive = true" @blur="isInputActive = false">
         </div>
       </div>
       
@@ -160,6 +160,15 @@
         
         <!-- 默认Ready状态 -->
         <span v-else>Ready</span>
+        
+        <!-- 帮助按钮 -->
+        <button 
+          @click="showHelpModal = true"
+          class="text-xs text-blue-600 hover:text-blue-800 hover:underline flex items-center space-x-1 cursor-pointer"
+          title="系统操作说明"
+        >
+          <i class="fa-solid fa-circle-question"></i>
+        </button>
       </div>
     </header>
 
@@ -209,7 +218,7 @@
               </button>
             </div>
           </div>
-          <div class="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-hide">
+          <div class="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-hide" ref="defectListRef">
             <button
               v-for="code in filteredDefectCodes"
               :key="code.id"
@@ -219,6 +228,7 @@
                   ? 'border-blue-500 bg-white shadow-md ring-1 ring-blue-500 text-blue-700 transform scale-[1.02]' 
                   : 'border-transparent bg-white text-gray-600 hover:bg-gray-100',
                 'cursor-pointer']"
+              :ref="el => { if (el) el.dataset.levelno = code.levelno }"
             >
               <span class="w-4 text-center mr-2 text-gray-600">{{ code.levelno }}</span>
               <div class="w-3 h-3 rounded-full mr-2 shadow-sm" :style="{background: code.color}"></div>
@@ -249,6 +259,7 @@
           :defect-codes="defectCodes"
           :selected-product-id="selectedInfo.product"
           :readonly="isReadonly"
+          :current-glass-id="currentGlassId"
           @add-defect="addDefect"
           @layout-status-change="hasLayout = $event"
         />
@@ -306,7 +317,7 @@
         <div class="flex-1 overflow-y-auto scrollbar-hide bg-white">
           <div 
               v-for="record in visibleDefects" 
-              :key="record.uid"
+              :key="record.uuid"
               class="border-b border-gray-100 hover:bg-gray-50 transition-colors"
             >
               <div class="flex items-center px-3 py-2 cursor-pointer group" @click="!isReadonly && toggleEdit(record)">
@@ -342,7 +353,7 @@
 
               <button 
                 v-if="!isReadonly" 
-                @click.stop="removeDefect(record.uid)" 
+                @click.stop="removeDefect(record.uuid)" 
                 class="w-6 h-6 flex items-center justify-center bg-gray-50 hover:bg-red-200 rounded-full transition-all duration-200 transform hover:scale-105 shadow-sm relative"
               >
                 <div class="w-2.5 h-0.5 bg-gray-500 hover:bg-red-900 transition-colors duration-200 transform rotate-45 absolute"></div>
@@ -354,8 +365,9 @@
               <input 
                 v-if="record.isEditing && !isReadonly"
                 v-model="record.remark"
-                :ref="el => { if(el) inputRefs[record.uid] = el }"
-                @blur="saveRemark(record)"
+                :ref="el => { if(el) inputRefs[record.uuid] = el }"
+                @blur="saveRemark(record); isInputActive = false"
+                @focus="isInputActive = true"
                 @keyup.enter="saveRemark(record)"
                 placeholder="输入备注..."
                 class="w-full text-xs border border-blue-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white"
@@ -371,14 +383,134 @@
         </div>
       </aside>
     </main>
+    
+    <!-- 帮助模态框 -->
+    <div 
+      v-if="showHelpModal" 
+      class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+      @click.self="closeHelpModal"
+    >
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+        <!-- 模态框标题 -->
+        <div class="bg-blue-600 text-white px-6 py-4 flex justify-between items-center">
+          <h3 class="text-lg font-bold flex items-center">
+            <i class="fa-solid fa-circle-question mr-2"></i>
+            系统操作说明
+          </h3>
+          <button 
+            @click="closeHelpModal"
+            class="text-white hover:text-gray-200 text-xl focus:outline-none"
+          >
+            &times;
+          </button>
+        </div>
+        
+        <!-- 模态框内容 -->
+        <div class="px-6 py-4 overflow-y-auto flex-1">
+          <div class="space-y-6">
+            <section>
+              <h4 class="text-md font-semibold text-gray-800 mb-2 flex items-center">
+                <i class="fa-solid fa-info-circle text-blue-600 mr-2"></i>
+                系统简介
+              </h4>
+              <p class="text-sm text-gray-700">
+                MAC系统是一款用于玻璃宏观检测的软件，支持多种缺陷类型的标注和管理。
+              </p>
+            </section>
+            
+            <section>
+              <h4 class="text-md font-semibold text-gray-800 mb-2 flex items-center">
+                <i class="fa-solid fa-gear text-blue-600 mr-2"></i>
+                主要功能
+              </h4>
+              <ul class="list-disc pl-5 text-sm text-gray-700 space-y-1">
+                <li>玻璃缺陷标注与管理</li>
+                <li>多种缺陷类型支持（点缺、线缺、曲线、面缺）</li>
+                <li>缺陷代码分类与过滤,并支持键盘输入数字定位</li>
+                <li>缺陷数据自动保存</li>
+                <li>自动计算MASK SHOT位置,显示SHOT边缘线</li>
+                <li>Mask缺陷的对称点自动提示</li>
+                <li>碰撞检测,根据绘制轨迹计算影响的panelID</li>
+                <li>从其他Glass复制缺陷</li>
+              </ul>
+            </section>
+            
+            <section>
+              <h4 class="text-md font-semibold text-gray-800 mb-2 flex items-center">
+                <i class="fa-solid fa-keyboard text-blue-600 mr-2"></i>
+                操作指南
+              </h4>
+              <div class="space-y-4">
+                 <div>
+                  <h5 class="text-sm font-medium text-gray-700 mb-1">首次操作</h5>
+                  <p class="text-xs text-gray-600 pl-4">请选择设备编号,后续操作将自动加载该设备。</p>
+                </div>
+                <div>
+                  <h5 class="text-sm font-medium text-gray-700 mb-1">标注缺陷</h5>
+                  <p class="text-xs text-gray-600 pl-4">1、选择或输入CST/LOT, 再选择GlassID</p>
+                  <p class="text-xs text-gray-600 pl-4">2、选择需要标注的缺陷Code</p>
+                  <ul class="list-disc pl-8 text-xs text-gray-600 space-y-1">
+                    <li>滚动列表选择缺陷Code</li>
+                    <li>支持点击缺陷类型进行过滤</li>
+                    <li>支持键盘输入数字进行定位</li>
+                  </ul>
+                  <p class="text-xs text-gray-600 pl-4">3、在中间画布区域点击或绘制缺陷：</p>
+                  <ul class="list-disc pl-8 text-xs text-gray-600 space-y-1">
+                    <li>点缺：直接点击即可。mask类型会自动提示对称点</li>
+                    <li>线缺：点击并拖动绘制线段</li>
+                    <li>曲线：点击并拖动绘制自由曲线</li>
+                    <li>面缺：点击并拖动绘制封闭区域</li>
+                  </ul>
+                </div>
+                <div>
+                  <h5 class="text-sm font-medium text-gray-700 mb-1">管理缺陷</h5>
+                  <p class="text-xs text-gray-600 pl-4">在右侧缺陷记录列表中可以：</p>
+                  <ul class="list-disc pl-8 text-xs text-gray-600 space-y-1">
+                    <li>鼠标悬停可查看缺陷详细信息</li>
+                    <li>点击缺陷以添加缺陷备注</li>
+                    <li>删除不需要的缺陷</li>
+                    <li>从其他Glass复制缺陷</li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+            
+            <section>
+              <h4 class="text-md font-semibold text-gray-800 mb-2 flex items-center">
+                <i class="fa-solid fa-exclamation-triangle text-blue-600 mr-2"></i>
+                注意事项
+              </h4>
+              <ul class="list-disc pl-5 text-sm text-gray-700 space-y-1">
+                <li>确保选择或输入正确的CST和Lot信息</li>
+                <li>缺陷标注后会自动保存到系统</li>
+                <li>如果Layout未加载，请联系TEST组在ADC系统导入</li>
+                <li>如果Mask Shot边缘线未加载或错误，请联系PHT在TAQ1831报表中查询并修正</li>
+                <li>只读权限用户只能查看缺陷，无法编辑</li>
+                <li>使用完成后请及时退出系统</li>
+              </ul>
+            </section>
+          </div>
+        </div>
+        
+        <!-- 模态框底部 -->
+        <div class="bg-gray-50 px-6 py-3 flex justify-end border-t">
+          <button 
+            @click="closeHelpModal"
+            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors"
+          >
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed, nextTick, watch } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import CanvasStage from '../components/CanvasStage.vue'
-import { getInitData, getGlassList, getReasonCodeList, getDefects, saveDefectRecord, getRelatedInfoByCstOrLot, filterOptionsByOper, getMachineByIp, getDefectsByLot } from '../services/api'
+import api, { getInitData, getGlassList, getReasonCodeList, getDefects, saveDefectRecord, getRelatedInfoByCstOrLot, filterOptionsByOper, getMachineByIp, getDefectsByLot } from '../services/api'
 
 // 创建路由实例，用于获取URL参数
 const route = useRoute()
@@ -443,6 +575,13 @@ const dbData = ref({}); // 新增：用于存储每个glass的缺陷记录数量
 const showCstDropdown = ref(false); // 控制CST下拉列表显示
 const showLotDropdown = ref(false); // 控制Lot下拉列表显示
 const hasLayout = ref(true); // 新增：控制layout状态，默认有layout
+const showHelpModal = ref(false); // 新增：控制帮助模态框显示
+
+// 全局数字输入定位缺陷相关变量
+const isInputActive = ref(false); // 当前是否有活跃输入框
+const digitBuffer = ref(''); // 存储连续输入的数字
+let digitTimer = null; // 用于重置输入缓冲区的计时器
+const defectListRef = ref(null); // 缺陷列表容器引用
 
 // 统一操作反馈信息显示函数
 const showMessage = (message, type = 'success', duration = 1500) => {
@@ -648,6 +787,11 @@ const toggleCopyFromDropdown = () => {
   showCopyFromDropdown.value = !showCopyFromDropdown.value;
 };
 
+// 关闭帮助模态框
+const closeHelpModal = () => {
+  showHelpModal.value = false;
+};
+
 // 获取同一Lot中有缺陷的Glass列表
 const getDefectiveGlasses = () => {
   const defectiveList = [];
@@ -670,11 +814,11 @@ const copyDefectsFromGlass = async (sourceGlassId) => {
     const defects = await getDefects(sourceGlassId, selectedInfo.processOperationName);
     
     if (defects.length > 0) {
-      // 为每个缺陷生成新的UID，避免冲突
+      // 为每个缺陷生成新的UUID，避免冲突
       const newDefects = defects.map(defect => {
         return {
           ...defect,
-          uid: Date.now() + Math.random().toString(36).substr(2, 9),
+          uuid: `defect-${Date.now()}${Math.random().toString(36).substr(2, 9)}`,
           isModified: true
         };
       });
@@ -707,22 +851,20 @@ const addDefect = (rec) => {
 };
 
 // 移除缺陷
-const removeDefect = async (uid) => {
+const removeDefect = async (uuid) => {
   // 先找到要删除的缺陷，用于可能的回滚
-  const defectToRemove = currentDefects.value.find(d => d.uid === uid);
+  const defectToRemove = currentDefects.value.find(d => d.uuid === uuid);
   if (!defectToRemove) {
     return;
   }
   
   try {
     // 先从数据库中删除
-    // 使用相对路径调用API，避免环境变量问题
-    await fetch(`/api/v1/defect/${uid}`, {
-      method: 'DELETE'
-    });
+    // 使用api对象调用，自动添加/mac/前缀，uuid已包含defect-前缀
+    await api.delete(`/api/v1/defect/${uuid}`);
     
     // 只有API成功后，才从当前列表中移除
-    currentDefects.value = currentDefects.value.filter(d => d.uid !== uid);
+    currentDefects.value = currentDefects.value.filter(d => d.uuid !== uuid);
     
     // 更新dbData，确保glass列表右侧标记正确
     dbData.value[currentGlassId.value] = currentDefects.value;
@@ -748,7 +890,7 @@ const toggleEdit = (rec) => {
   currentDefects.value.forEach(d => d.isEditing = false);
   rec.isEditing = true;
   nextTick(() => {
-    if (inputRefs.value[rec.uid]) inputRefs.value[rec.uid].focus();
+    if (inputRefs.value[rec.uuid]) inputRefs.value[rec.uuid].focus();
   });
 };
 
@@ -758,6 +900,71 @@ const saveRemark = (rec) => {
   // 标记为已修改
   rec.isModified = true;
   triggerAutoSave();
+};
+
+// 全局键盘事件处理
+const handleKeydown = (e) => {
+  // 如果有活跃输入框，不处理
+  if (isInputActive.value) return;
+  
+  // 如果是数字键（0-9）
+  if (e.key >= '0' && e.key <= '9') {
+    // 添加到输入缓冲区
+    digitBuffer.value += e.key;
+    
+    // 清除之前的计时器
+    if (digitTimer) {
+      clearTimeout(digitTimer);
+    }
+    
+    // 设置新的计时器，300ms后处理输入
+    digitTimer = setTimeout(() => {
+      processDigitInput();
+    }, 300);
+  }
+};
+
+// 处理数字输入，定位缺陷
+const processDigitInput = () => {
+  if (!digitBuffer.value) return;
+  
+  const inputLevelno = parseInt(digitBuffer.value);
+  // 重置输入缓冲区
+  digitBuffer.value = '';
+  
+  // 查找对应的缺陷代码（如果有多个相同levelno，取第一个）
+  const matchedCode = filteredDefectCodes.value.find(code => code.levelno === inputLevelno);
+  
+  if (matchedCode) {
+    // 激活匹配的缺陷代码
+    switchCode(matchedCode);
+    
+    // 滚动到匹配的缺陷项
+    scrollToDefect(inputLevelno);
+  }
+};
+
+// 滚动到匹配的缺陷项
+const scrollToDefect = (levelno) => {
+  nextTick(() => {
+    if (defectListRef.value) {
+      // 查找对应的按钮元素
+      const buttons = defectListRef.value.querySelectorAll('button');
+      let targetButton = null;
+      
+      for (const button of buttons) {
+        if (parseInt(button.dataset.levelno) === levelno) {
+          targetButton = button;
+          break;
+        }
+      }
+      
+      if (targetButton) {
+        // 平滑滚动到元素
+        targetButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  });
 };
 
 // --- 3. 事件处理 ---
@@ -869,7 +1076,7 @@ const triggerAutoSave = async () => {
       
       // 构建符合后端schema的缺陷记录
       const defectRecord = {
-        uuid: defect.uid.toString(),
+        uuid: defect.uuid,
         glass_id: currentGlassId.value,
         lotname: selectedInfo.lot || '',
         productrequestname: selectedInfo.productrequestname || '',
@@ -1360,6 +1567,18 @@ onMounted(async () => {
   
   // 从URL中获取userrole参数
   userrole.value = route.query.userrole || '';
+  
+  // 添加全局键盘事件监听
+  window.addEventListener('keydown', handleKeydown);
+});
+
+// 组件销毁时移除事件监听
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown);
+  // 清除计时器
+  if (digitTimer) {
+    clearTimeout(digitTimer);
+  }
 });
 </script>
 

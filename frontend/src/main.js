@@ -1,5 +1,7 @@
 import { createApp } from 'vue'
 import './style.css'
+// 引入Font Awesome CSS
+import '@fortawesome/fontawesome-free/css/all.css'
 import App from './App.vue'
 import router from './router'
 

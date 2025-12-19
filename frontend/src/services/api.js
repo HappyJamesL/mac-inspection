@@ -134,7 +134,7 @@ export const getDefectsByLot = async (lotname, processOperationName = '') => {
 export const saveDefectRecord = async (defectRecord) => {
   // 转换前端数据格式为后端期望的格式
   const formattedDefect = {
-    uuid: defectRecord.uid || `defect-${Date.now()}`, // 使用uid作为uuid，或生成新的
+    uuid: defectRecord.uuid || defectRecord.uid || `defect-${Date.now()}`, // 优先使用uuid，其次是uid，最后生成新的
     glass_id: defectRecord.glassId || defectRecord.id || defectRecord.glass_id, // 确保有glass_id，支持glass_id字段
     lotname: defectRecord.lotname,
     productrequestname: defectRecord.productrequestname,
@@ -143,7 +143,11 @@ export const saveDefectRecord = async (defectRecord) => {
     defect_type: defectRecord.type || defectRecord.defect_type || 'point', // type -> defect_type，支持defect_type字段，提供默认值
     geom_data: defectRecord.path || defectRecord.geom_data || (defectRecord.x && defectRecord.y ? [[defectRecord.x, defectRecord.y]] : undefined), // 转换为geom_data格式，支持直接从geom_data字段获取值
     panel_id: defectRecord.panelId || defectRecord.panel_id, // panelId -> panel_id
-    is_symmetry: (defectRecord.isSymmetry !== undefined ? defectRecord.isSymmetry : defectRecord.is_symmetry) ? 'Y' : 'N', // isSymmetry -> is_symmetry, support both camelCase and snake_case
+    is_symmetry: (() => {
+      const value = defectRecord.isSymmetry !== undefined ? defectRecord.isSymmetry : defectRecord.is_symmetry;
+      // 如果是字符串，直接比较是否为'Y'，否则使用布尔值判断
+      return typeof value === 'string' ? (value === 'Y' ? 'Y' : 'N') : (value ? 'Y' : 'N');
+    })(), // isSymmetry -> is_symmetry, support both camelCase and snake_case
     remark: defectRecord.remark,
     operator_id: defectRecord.operator_id,
     machinename: defectRecord.machinename,
