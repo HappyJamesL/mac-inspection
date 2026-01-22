@@ -21,7 +21,9 @@ class Defect(Base):
     is_symmetry = Column(String(1), default='N')  # 是否为MASK对称缺陷产生的记录
     machinename = Column(String(20))  # 机器名称
     operator_id = Column(String(20))  # 操作员ID
+    inspector = Column(String(100))  # 检测人员姓名（多个用逗号分隔）
     processoperationname = Column(String(20), index=True)  # 工序站点名称
+    inspection_type = Column(String(20))  # 检测类型：首检，过程检，异常加测，测膜边
     created_at = Column(DateTime(timezone=True), server_default=func.now())  # 创建时间
     
     # 所有Text类型的列（Oracle中是CLOB）放在最后

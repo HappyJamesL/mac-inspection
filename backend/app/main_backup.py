@@ -1,3 +1,5 @@
+# 备用应用入口文件，包含完整配置
+# 当前部署使用的是根目录下的 main.py
 """FastAPI应用主入口"""
 import os
 from fastapi import FastAPI
@@ -48,7 +50,7 @@ if not os.path.exists(settings.UPLOAD_DIR):
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # 包含路由
-app.include_router(api_router, prefix="/api/v1")
+app.include_router(api_router, prefix="/mac/api/v1")
 
 
 @app.get("/")

@@ -12,14 +12,14 @@ export default defineConfig({
       // 处理/mac/api请求，用于本地开发测试
       '/mac/api': {
         target: 'http://localhost:8000',
-        changeOrigin: true,
-        // 将/mac/api重写为/api，匹配后端实际API路径
-        rewrite: (path) => path.replace(/^\/mac\/api/, '/api')
+        changeOrigin: true
       },
       // 将/api请求代理到后端服务，兼容原有请求
       '/api': {
         target: 'http://localhost:8000',
-        changeOrigin: true
+        changeOrigin: true,
+        // 将/api重写为/mac/api，匹配后端实际API路径
+        rewrite: (path) => path.replace(/^\/api/, '/mac/api')
       }
     }
   }

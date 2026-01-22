@@ -5,7 +5,7 @@ set -e
 # 配置变量
 APP_NAME="mac-inspection"
 APP_DIR="/app/mac-inspection/backend"
-VENV_PATH="$APP_DIR/venv3"
+VENV_PATH="$APP_DIR/venv39"
 CONFIG_FILE="$APP_DIR/gunicorn.conf.py"
 LOG_DIR="/tmp/gunicorn_logs"
 PID_DIR="/tmp/gunicorn_pids"
@@ -43,8 +43,7 @@ check_environment() {
     log "info" "检查环境..."
     
     # 检查Python和pip
-    local python_cmds=("python3.9" "/usr/local/bin/python3.9/bin/python3.9" "python3.9.x" "python" "python3")
-    
+    local python_cmds=("python3.9" "/usr/local/python3.9/bin/python3.9" "python3.9.x" "python" "python3")
     for cmd in "${python_cmds[@]}"; do
         if command -v "$cmd" &> /dev/null; then
             # 检查版本是否为3.9.x

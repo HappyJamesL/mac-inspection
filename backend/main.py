@@ -1,4 +1,4 @@
-# Apply pydantic patch for Python 3.10 compatibility
+# Apply pydantic patch for Python 3.9 compatibility
 import pydantic_patch
 
 from fastapi import FastAPI
@@ -26,7 +26,7 @@ app.add_middleware(
 )
 
 # 包含路由
-app.include_router(api_router, prefix="/api/v1")
+app.include_router(api_router, prefix="/mac/api/v1")
 
 # 根路径
 @app.get("/")

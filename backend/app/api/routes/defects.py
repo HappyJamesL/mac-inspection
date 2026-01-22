@@ -118,6 +118,7 @@ async def get_defects_by_glass(
                 "isSymmetry": defect.is_symmetry == "Y",  # 前端期望的字段名（布尔值）
                 "machinename": defect.machinename or "",
                 "processoperationname": defect.processoperationname or "",
+                "inspection_type": defect.inspection_type or "首检",
                 "created_at": defect.created_at.isoformat() if defect.created_at else ""
             }
             
@@ -230,6 +231,7 @@ async def get_defects_by_lot(
                 "isSymmetry": defect.is_symmetry == "Y",  # 前端期望的字段名（布尔值）
                 "machinename": defect.machinename or "",
                 "processoperationname": defect.processoperationname or "",
+                "inspection_type": defect.inspection_type or "首检",
                 "created_at": defect.created_at.isoformat() if defect.created_at else ""
             }
             
@@ -246,96 +248,100 @@ async def save_defect(
 ):
     """保存缺陷记录，包含几何碰撞检测"""
     try:
-        # 对于线缺、面缺等类型，无论前端是否提供panel_id，都要进行碰撞检测
-        # 确保记录所有碰撞到的panel
-        panel_id = defect_data.panel_id
-        defect_type_lower = defect_data.defect_type.lower()
-        
-        # 强制碰撞检测的缺陷类型
-        force_detection_types = ['line', 'curve', 'area', 'region']
-        
-        # 确保geom_data是有效的列表
-        valid_geom_data = False
-        if defect_data.geom_data and isinstance(defect_data.geom_data, list) and len(defect_data.geom_data) > 0:
-            # 检查第一个点是否有效
-            first_point = defect_data.geom_data[0]
-            if (isinstance(first_point, list) and len(first_point) >= 2) or \
-               (isinstance(first_point, dict) and 'x' in first_point and 'y' in first_point):
-                valid_geom_data = True
-        
-        # 只有当有有效的geom_data或者是强制检测类型时，才进行碰撞检测
-        if (not panel_id and valid_geom_data) or (defect_type_lower in force_detection_types):
-            # 查询该产品的所有panel坐标
-            panels = db.query(GlassLayout).filter(
-                GlassLayout.tft_product == defect_data.product_id
-            ).all()
+        # 特殊处理：对于"正常"缺陷代码，跳过panel验证
+        if defect_data.defect_code == "正常":
+            panel_id = ""  # 设置为空字符串，表示不需要panel
+        else:
+            # 对于线缺、面缺等类型，无论前端是否提供panel_id，都要进行碰撞检测
+            # 确保记录所有碰撞到的panel
+            panel_id = defect_data.panel_id
+            defect_type_lower = defect_data.defect_type.lower()
             
-            if not panels:
-                raise HTTPException(status_code=404, detail=f"未找到产品 {defect_data.product_id} 的布局信息")
+            # 强制碰撞检测的缺陷类型
+            force_detection_types = ['line', 'curve', 'area', 'region']
             
-            # 转换panel数据为几何计算所需格式
-            panel_list = []
-            for panel in panels:
-                panel_list.append({
-                    'panel_id': str(panel.id),
-                    'x_left_up': panel.x_left_up,
-                    'y_left_up': panel.y_left_up,
-                    'x_right_up': panel.x_right_up,
-                    'y_right_up': panel.y_right_up,
-                    'x_right_down': panel.x_right_down,
-                    'y_right_down': panel.y_right_down,
-                    'x_left_down': panel.x_left_down,
-                    'y_left_down': panel.y_left_down
-                })
-            
-            # 创建panel多边形
-            panel_polygons = get_panel_polygons(panel_list)
-            
-            # 构建坐标信息 - 根据缺陷类型传递不同格式的坐标
-            coordinates = {'x': 0, 'y': 0}
-            
-            if defect_type_lower in ['point'] and valid_geom_data:
-                # 点缺陷：使用geom_data中的第一个点
+            # 确保geom_data是有效的列表
+            valid_geom_data = False
+            if defect_data.geom_data and isinstance(defect_data.geom_data, list) and len(defect_data.geom_data) > 0:
+                # 检查第一个点是否有效
                 first_point = defect_data.geom_data[0]
-                if isinstance(first_point, list) and len(first_point) >= 2:
-                    coordinates = {
-                        'x': first_point[0],
-                        'y': first_point[1]
-                    }
-                elif isinstance(first_point, dict) and 'x' in first_point and 'y' in first_point:
-                    coordinates = {
-                        'x': first_point['x'],
-                        'y': first_point['y']
-                    }
-            elif defect_type_lower in ['line', 'curve', 'area', 'region'] and valid_geom_data:
-                # 线缺陷、曲线缺陷、面缺陷：传递完整的geom_data坐标列表
-                coordinates = defect_data.geom_data
+                if (isinstance(first_point, list) and len(first_point) >= 2) or \
+                   (isinstance(first_point, dict) and 'x' in first_point and 'y' in first_point):
+                    valid_geom_data = True
             
-            # 判定缺陷所属panel
-            panel_id = determine_panel(
-                defect_data.defect_type,
-                coordinates,
-                panel_polygons
-            )
-            
-            # 如果没有找到panel，尝试使用点缺陷的处理方式作为备选
-            if not panel_id and valid_geom_data:
-                # 尝试从geom_data中获取第一个点，作为点缺陷处理
-                first_point = defect_data.geom_data[0]
-                if isinstance(first_point, list) and len(first_point) >= 2:
-                    point_coords = {
-                        'x': first_point[0],
-                        'y': first_point[1]
-                    }
-                    panel_id = determine_panel(
-                        'point',
-                        point_coords,
-                        panel_polygons
-                    )
-            
-            # 如果仍然没有找到panel，抛出异常
-            if not panel_id:
-                raise HTTPException(status_code=400, detail="缺陷坐标不在任何panel内")
+            # 只有当有有效的geom_data或者是强制检测类型时，才进行碰撞检测
+            if (not panel_id and valid_geom_data) or (defect_type_lower in force_detection_types):
+                # 查询该产品的所有panel坐标
+                panels = db.query(GlassLayout).filter(
+                    GlassLayout.tft_product == defect_data.product_id
+                ).all()
+                
+                if not panels:
+                    raise HTTPException(status_code=404, detail=f"未找到产品 {defect_data.product_id} 的布局信息")
+                
+                # 转换panel数据为几何计算所需格式
+                panel_list = []
+                for panel in panels:
+                    panel_list.append({
+                        'panel_id': str(panel.id),
+                        'x_left_up': panel.x_left_up,
+                        'y_left_up': panel.y_left_up,
+                        'x_right_up': panel.x_right_up,
+                        'y_right_up': panel.y_right_up,
+                        'x_right_down': panel.x_right_down,
+                        'y_right_down': panel.y_right_down,
+                        'x_left_down': panel.x_left_down,
+                        'y_left_down': panel.y_left_down
+                    })
+                
+                # 创建panel多边形
+                panel_polygons = get_panel_polygons(panel_list)
+                
+                # 构建坐标信息 - 根据缺陷类型传递不同格式的坐标
+                coordinates = {'x': 0, 'y': 0}
+                
+                if defect_type_lower in ['point'] and valid_geom_data:
+                    # 点缺陷：使用geom_data中的第一个点
+                    first_point = defect_data.geom_data[0]
+                    if isinstance(first_point, list) and len(first_point) >= 2:
+                        coordinates = {
+                            'x': first_point[0],
+                            'y': first_point[1]
+                        }
+                    elif isinstance(first_point, dict) and 'x' in first_point and 'y' in first_point:
+                        coordinates = {
+                            'x': first_point['x'],
+                            'y': first_point['y']
+                        }
+                elif defect_type_lower in ['line', 'curve', 'area', 'region'] and valid_geom_data:
+                    # 线缺陷、曲线缺陷、面缺陷：传递完整的geom_data坐标列表
+                    coordinates = defect_data.geom_data
+                
+                # 判定缺陷所属panel
+                panel_id = determine_panel(
+                    defect_data.defect_type,
+                    coordinates,
+                    panel_polygons
+                )
+                
+                # 如果没有找到panel，尝试使用点缺陷的处理方式作为备选
+                if not panel_id and valid_geom_data:
+                    # 尝试从geom_data中获取第一个点，作为点缺陷处理
+                    first_point = defect_data.geom_data[0]
+                    if isinstance(first_point, list) and len(first_point) >= 2:
+                        point_coords = {
+                            'x': first_point[0],
+                            'y': first_point[1]
+                        }
+                        panel_id = determine_panel(
+                            'point',
+                            point_coords,
+                            panel_polygons
+                        )
+                
+                # 如果仍然没有找到panel，抛出异常
+                if not panel_id:
+                    raise HTTPException(status_code=400, detail="缺陷坐标不在任何panel内")
         
         # 坐标转换：将微米坐标转换为毫米整数（除以1000并四舍五入）
         def convert_coordinates_to_mm(coords):
@@ -389,8 +395,11 @@ async def save_defect(
             remarks=defect_data.remark,
             machinename=defect_data.machinename,
             operator_id=defect_data.operator_id,
-            processoperationname=defect_data.processoperationname
+            inspector=defect_data.inspector,
+            processoperationname=defect_data.processoperationname,
+            inspection_type=defect_data.inspection_type
         )
+
         
         # 检查是否已存在相同uuid的缺陷记录
         existing_defect = db.query(Defect).filter(Defect.uuid == defect_data.uuid).first()
@@ -566,8 +575,10 @@ async def query_defects(
                 "is_symmetry": defect.is_symmetry or "N",  # 保留原字段名，兼容旧版本
                 "isSymmetry": defect.is_symmetry == "Y",  # 前端期望的字段名（布尔值）
                 "machinename": defect.machinename or "",
+                "inspection_type": defect.inspection_type or "首检",
                 "created_at": defect.created_at.isoformat() if defect.created_at else ""
             }
+
             
             defect_list.append(defect_dict)
         

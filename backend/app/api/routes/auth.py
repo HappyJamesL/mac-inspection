@@ -155,7 +155,20 @@ async def check_permission(
     db: Session = Depends(get_db)
 ):
     """验证userrole权限"""
+    import hashlib
+    from datetime import datetime
     from app.core.config import settings
-    # 验证userrole是否为配置的ROLE_ADMIN或readonly
-    allowed = userrole == settings.ROLE_ADMIN or userrole == "readonly"
+    
+    # 获取当前时间 (yyyyMMddHHmm)
+    current_time = datetime.now().strftime("%Y%m%d%H%M")
+    
+    # 构造待加密字符串: ROLE_ADMIN + 时间戳
+    data_to_hash = settings.ROLE_ADMIN + current_time
+    
+    # 计算 SHA-1 哈希值
+    expected_hash = hashlib.sha1(data_to_hash.encode()).hexdigest()
+    
+    # 验证 userrole: 匹配动态哈希或固定的 "readonly"
+    allowed = (userrole == expected_hash) or (userrole == "readonly")
+    
     return {"allowed": allowed}

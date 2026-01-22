@@ -167,6 +167,7 @@ def create_specific_tables(drop_existing: bool = False) -> None:
             REMARKS TEXT,
             MACHINENAME VARCHAR(20),
             OPERATOR_ID VARCHAR(20),
+            INSPECTOR VARCHAR(100),
             CREATED_AT DATETIME DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (UUID)
         )"""
@@ -198,6 +199,7 @@ def create_specific_tables(drop_existing: bool = False) -> None:
             REMARKS CLOB,
             MACHINENAME VARCHAR2(20),
             OPERATOR_ID VARCHAR2(20),
+            INSPECTOR VARCHAR2(100),
             CREATED_AT TIMESTAMP DEFAULT (CURRENT_TIMESTAMP),
             PRIMARY KEY (UUID)
         )"""

@@ -15,3 +15,13 @@ class DefectType(Base):
     reasoncodetype = Column(String(40), name="REASONCODETYPE")  # 不良代码的归属类型
     codetype = Column(CHAR(10), name="codetype")  # 不良代码的类型
     color = Column(CHAR(10), name="color")  # 不良代码的颜色
+    availability = Column(String(20), name="AVAILABILITY")  # 可用性状态
+    has_remark = Column(CHAR(1), name="HAS_REMARK")  # 是否需要备注
+    
+    @classmethod
+    def glass_codes(cls, db):
+        """查询所有可用的玻璃缺陷类型"""
+        return db.query(cls).filter(
+            cls.reasoncodetype == 'GLASSCODE',
+            cls.availability == 'Available'
+        ).all()

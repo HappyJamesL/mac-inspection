@@ -41,3 +41,9 @@ venv39/
 __pycache__/
 *.pyc
 *.pyo
+
+# Trae AI files
+.trae/
+
+# Error analysis files
+tar_error_analysis.md

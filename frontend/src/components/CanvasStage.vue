@@ -16,7 +16,7 @@
 <script setup>
 import { ref, reactive, onMounted, watch, nextTick } from 'vue'
 import Konva from 'konva'
-// 请确保路径正确，或替换为 mock 数据
+// 请确保路径正确
 import { getProductLayout } from '../services/api'
 
 // --- Props & Emits ---
@@ -655,6 +655,84 @@ const drawBackground = () => {
     listening: false,
     opacity: 0.8
   }));
+
+  // 坐标系（贯穿玻璃轮廓，略超出轮廓，正向带箭头）
+  const axisColor = '#ffffff';
+  const axisOpacity = 0.8;
+  const axisWidth = 1;
+  const extendScreen = 18;
+  const arrowSize = 6;
+
+  const xAxisY = toScreenY(0);
+  const yAxisX = toScreen(0);
+  const leftScreen = toScreen(-glassW/2);
+  const rightScreen = toScreen(glassW/2);
+  const bottomScreen = toScreenY(-glassH/2);
+  const topScreen = toScreenY(glassH/2);
+
+  mainLayer.add(new Konva.Line({
+    points: [leftScreen - extendScreen, xAxisY, rightScreen + extendScreen, xAxisY],
+    stroke: axisColor,
+    strokeWidth: axisWidth,
+    opacity: axisOpacity,
+    listening: false
+  }));
+
+  mainLayer.add(new Konva.Line({
+    points: [
+      rightScreen + extendScreen, xAxisY,
+      rightScreen + extendScreen - arrowSize, xAxisY + arrowSize,
+      rightScreen + extendScreen, xAxisY,
+      rightScreen + extendScreen - arrowSize, xAxisY - arrowSize
+    ],
+    stroke: axisColor,
+    strokeWidth: axisWidth,
+    opacity: axisOpacity,
+    listening: false
+  }));
+
+  const xLabel = new Konva.Text({
+    x: rightScreen + extendScreen -16,
+    y: xAxisY +6,
+    text: 'x+',
+    fontSize: 14,
+    fill: axisColor,
+    opacity: axisOpacity,
+    listening: false
+  });
+  mainLayer.add(xLabel);
+
+  mainLayer.add(new Konva.Line({
+    points: [yAxisX, topScreen - extendScreen, yAxisX, bottomScreen + extendScreen],
+    stroke: axisColor,
+    strokeWidth: axisWidth,
+    opacity: axisOpacity,
+    listening: false
+  }));
+
+  mainLayer.add(new Konva.Line({
+    points: [
+      yAxisX, topScreen - extendScreen,
+      yAxisX - arrowSize, topScreen - extendScreen + arrowSize,
+      yAxisX, topScreen - extendScreen,
+      yAxisX + arrowSize, topScreen - extendScreen + arrowSize
+    ],
+    stroke: axisColor,
+    strokeWidth: axisWidth,
+    opacity: axisOpacity,
+    listening: false
+  }));
+
+  const yLabel = new Konva.Text({
+    x: yAxisX + 8,
+    y: topScreen - extendScreen - 2,
+    text: 'y+',
+    fontSize: 14,
+    fill: axisColor,
+    opacity: axisOpacity,
+    listening: false
+  });
+  mainLayer.add(yLabel);
 
   // 1. 绘制 Panels
   panels.forEach((p, idx) => {

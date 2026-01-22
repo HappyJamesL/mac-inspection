@@ -1,176 +1,153 @@
 <template>
   <div class="h-screen flex flex-col overflow-hidden">
-    <header class="h-12 bg-white shadow-sm flex items-center justify-between px-4 z-20 border-b border-gray-200 shrink-0">
-      <div class="flex items-center space-x-3">
-        <span class="font-bold text-blue-800 text-sm"><i class="fa-solid fa-microchip mr-1"></i>MAC System</span>
-        
-        <div class="flex items-center text-xs text-gray-700">
-            <span class="mr-1 font-medium">CST:</span>
-            <div class="relative">
-                <input 
-                    type="text" 
-                    v-model="selectedInfo.cst" 
-                    class="bg-gray-100 border border-gray-300 rounded text-xs py-1 pr-6 pl-2 focus:border-blue-500 w-20"
-                    placeholder="输入或选择"
-                    @keyup.enter="onCstLotChange('cst')"
-                    @focus="hideDropdown('cst'); isInputActive = true"
-                    @blur="handleBlur('cst'); isInputActive = false"
-                    @input="filterDropdownOptions('cst')"
-                >
-                <div 
-                    class="absolute right-1 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center cursor-pointer text-gray-500 hover:text-blue-500"
-                    @mousedown.prevent="loadDropdownData('cst')"
-                >
-                    <span class="text-[10px]">▼</span>
-                </div>
-                
-                <!-- 自定义下拉列表 -->
-                <div 
-                    v-if="showCstDropdown" 
-                    class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-48 overflow-y-auto text-xs"
-                >
-                    <div 
-                        v-for="c in selectOptions.cst" 
-                        :key="c" 
-                        class="px-2 py-1 hover:bg-blue-100 cursor-pointer"
-                        @mousedown.prevent="selectOption('cst', c)"
-                    >
-                        {{ c }}
-                    </div>
-                    <div v-if="!selectOptions.cst || selectOptions.cst.length === 0" class="px-2 py-1 text-gray-400">
-                        暂无数据
-                    </div>
-                </div>
-            </div>
+    <header class="bg-white shadow-sm z-20 border-b border-gray-200 shrink-0">
+      <!-- 第一行：系统标识与扩展控制 -->
+      <div class="h-8 flex items-center justify-between px-3 border-b border-gray-100 bg-gray-50/50">
+        <div class="flex items-center space-x-6">
+          <span class="font-bold text-blue-800 text-sm shrink-0"><i class="fa-solid fa-microchip mr-1"></i>MAC System</span>
+
+          <div class="flex items-center text-xs text-gray-700">
+              <span class="mr-1 font-medium">InspType:</span>
+              <select v-model="selectedInfo.inspectionType" class="bg-white border border-gray-300 rounded text-xs py-1 px-1 focus:border-blue-500 w-32">
+                  <option v-for="type in ['首检', '过程检', '异常加测', '测膜边']" :key="type" :value="type">{{ type }}</option>
+              </select>
+          </div>
+
+          <div class="flex items-center text-xs text-gray-700 inspector-dropdown-container">
+              <span class="mr-1 font-medium">Inspector:</span>
+              <div v-if="isReadonly" class="bg-gray-100 border border-gray-300 rounded text-xs py-0.5 px-1 w-40 truncate">{{ selectedInfo.selectedInspectors.join(', ') || '-' }}</div>
+              <div v-else class="relative">
+                  <div class="bg-white border border-gray-300 rounded text-xs py-0.5 px-1 w-40 cursor-pointer truncate" @click="showInspectorDropdown = !showInspectorDropdown" :title="selectedInfo.selectedInspectors.join(', ')">
+                      {{ selectedInfo.selectedInspectors.join(', ') || '请选择' }}
+                  </div>
+                  <div v-if="showInspectorDropdown" class="absolute z-30 mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-48 overflow-y-auto" style="width: 14rem">
+                      <div v-for="inspector in selectedInfo.availableInspectors" :key="inspector" class="flex items-center px-2 py-1 hover:bg-gray-100 cursor-pointer text-xs" @click="toggleInspector(inspector)">
+                          <input type="checkbox" :checked="selectedInfo.selectedInspectors.includes(inspector)" class="mr-1" @click.stop>
+                          {{ inspector }}
+                      </div>
+                  </div>
+              </div>
+          </div>
+
+          <div class="flex items-center text-xs text-gray-700">
+              <span class="mr-1 font-medium">Machine:</span>
+              <div v-if="isReadonly || hasStoredMachine" class="bg-gray-100 border border-gray-300 rounded text-xs py-0.5 px-1 w-24">{{ selectedInfo.eq }}</div>
+              <select v-else v-model="selectedInfo.eq" @change="handleMachineChange" class="bg-white border border-gray-300 rounded text-xs py-0.5 px-1 focus:border-blue-500">
+                  <option v-for="e in selectOptions.eqs" :key="e">{{ e }}</option>
+              </select>
+          </div>
+
+          <div class="flex items-center text-xs text-gray-700">
+              <span class="mr-1 font-medium">LogIn:</span>
+              <div class="bg-gray-100 border border-gray-300 rounded text-xs py-0.5 px-1 w-28">{{ selectedInfo.operatorId }}</div>
+          </div>
         </div>
 
-        <div class="flex items-center text-xs text-gray-700">
-            <span class="mr-1 font-medium">Lot:</span>
-            <div class="relative">
-                <input 
-                    type="text" 
-                    v-model="selectedInfo.lot" 
-                    class="bg-gray-100 border border-gray-300 rounded text-xs py-1 pr-6 pl-2 focus:border-blue-500 w-36"
-                    placeholder="输入或选择"
-                    @keyup.enter="onCstLotChange('lot')"
-                    @focus="hideDropdown('lot'); isInputActive = true"
-                    @blur="handleBlur('lot'); isInputActive = false"
-                    @input="filterDropdownOptions('lot')"
-                >
-                <div 
-                    class="absolute right-1 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center cursor-pointer text-gray-500 hover:text-blue-500"
-                    @mousedown.prevent="loadDropdownData('lot')"
-                >
-                    <span class="text-[10px]">▼</span>
-                </div>
-                
-                <!-- 自定义下拉列表 -->
-                <div 
-                    v-if="showLotDropdown" 
-                    class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-48 overflow-y-auto text-xs"
-                >
-                    <div 
-                        v-for="l in selectOptions.lots" 
-                        :key="l" 
-                        class="px-2 py-1 hover:bg-blue-100 cursor-pointer"
-                        @mousedown.prevent="selectOption('lot', l)"
-                    >
-                        {{ l }}
-                    </div>
-                    <div v-if="!selectOptions.lots || selectOptions.lots.length === 0" class="px-2 py-1 text-gray-400">
-                        暂无数据
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="flex items-center text-xs text-gray-700">
-            <span class="mr-1 font-medium">WorkOrder:</span>
-            <div class="relative">
-                <input 
-                    type="text" 
-                    v-model="selectedInfo.productrequestname" 
-                    readonly
-                    class="bg-gray-100 border border-gray-300 rounded text-xs py-1 px-1 focus:border-blue-500 w-24 cursor-not-allowed"
-                >
-            </div>
-        </div>
-
-        <div class="flex items-center text-xs text-gray-700">
-            <span class="mr-1 font-medium">Product:</span>
-            <div class="relative">
-                <input 
-                    type="text" 
-                    v-model="selectedInfo.product" 
-                    readonly
-                    class="bg-gray-100 border border-gray-300 rounded text-xs py-1 px-1 focus:border-blue-500 w-32 cursor-not-allowed"
-                >
-            </div>
-        </div>
-        
-        <div class="flex items-center text-xs text-gray-700">
-            <span class="mr-1 font-medium">OPER:</span>
-            <div class="relative">
-                <input 
-                    type="text" 
-                    v-model="selectedInfo.processOperationName" 
-                    readonly
-                    class="bg-gray-100 border border-gray-300 rounded text-xs py-1 px-1 focus:border-blue-500 w-14 cursor-not-allowed"
-                >
-            </div>
-        </div>
-
-        <div class="flex items-center text-xs text-gray-700">
-            <span class="mr-1 font-medium">Machine:</span>
-            <div v-if="hasStoredMachine" class="bg-gray-100 border border-gray-300 rounded text-xs py-1 px-1 focus:border-blue-500">
-                {{ selectedInfo.eq }}
-            </div>
-            <select v-else v-model="selectedInfo.eq" @change="handleMachineChange" class="bg-gray-100 border border-gray-300 rounded text-xs py-1 px-1 focus:border-blue-500">
-                <option v-for="e in selectOptions.eqs" :key="e">{{ e }}</option>
-            </select>
-        </div>
-
-        <div class="flex items-center text-xs text-gray-700">
-            <span class="mr-1 font-medium">LogIn:</span>
-            <input v-model="selectedInfo.operatorId"  class="bg-gray-100 border border-gray-300 rounded text-xs py-1 px-1 focus:border-blue-500 w-20" @focus="isInputActive = true" @blur="isInputActive = false">
+        <div class="text-xs flex items-center space-x-3">
+          <span v-if="!hasLayout" class="text-yellow-600 font-bold"><i class="fa-solid fa-exclamation-triangle"></i> 缺Layout</span>
+          <span v-else-if="autoSaveStatus" class="text-green-600 font-bold"><i class="fa-solid fa-check"></i> 保存成功</span>
+          <div v-else-if="saveMessage" :class="['flex items-center font-bold px-2 py-1 rounded', saveMessageType === 'success' ? 'bg-green-100 text-green-700' : saveMessageType === 'error' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700']">
+            <i v-if="saveMessageType === 'success'" class="fa-solid fa-check-circle mr-1"></i>
+            <i v-else-if="saveMessageType === 'error'" class="fa-solid fa-exclamation-circle mr-1"></i>
+            <span>{{ saveMessage }}</span>
+          </div>
+          <span v-else>Ready</span>
+          <button @click="showHelpModal = true" class="text-xs text-blue-600 hover:text-blue-800 hover:underline flex items-center space-x-1 cursor-pointer" title="系统操作说明">
+            <i class="fa-solid fa-circle-question"></i>
+          </button>
         </div>
       </div>
-      
-      <div class="text-xs flex items-center space-x-3">
-        <!-- Layout状态提示 -->
-        <span v-if="!hasLayout" class="text-yellow-600 font-bold">
-          <i class="fa-solid fa-exclamation-triangle"></i> 缺Layout
-        </span>
-        
-        <!-- 保存成功提示 -->
-        <span v-else-if="autoSaveStatus" class="text-green-600 font-bold">
-          <i class="fa-solid fa-check"></i> 保存成功
-        </span>
-        
-        <!-- 保存/删除操作提示 -->
-        <div v-else-if="saveMessage" :class="[
-          'flex items-center font-bold px-2 py-1 rounded',
-          saveMessageType === 'success' ? 'bg-green-100 text-green-700' : 
-          saveMessageType === 'error' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
-        ]">
-          <i v-if="saveMessageType === 'success'" class="fa-solid fa-check-circle mr-1"></i>
-          <i v-else-if="saveMessageType === 'error'" class="fa-solid fa-exclamation-circle mr-1"></i>
-          <span>{{ saveMessage }}</span>
+
+      <!-- 第二行：基础资产信息 -->
+      <div class="h-8 flex items-center px-3">
+        <div class="flex items-center space-x-4">
+          <div v-if="!isReadonly" class="flex items-center text-xs text-gray-700">
+              <span class="mr-1 font-medium">CST:</span>
+              <div class="relative">
+                  <input 
+                      type="text" 
+                      v-model="selectedInfo.cst" 
+                      class="bg-gray-100 border border-gray-300 rounded text-xs py-0.5 pr-6 pl-2 focus:border-blue-500 w-28"
+                      placeholder="输入或选择"
+                      @keyup.enter="onCstLotChange('cst')"
+                      @focus="hideDropdown('cst'); isInputActive = true"
+                      @blur="handleBlur('cst'); isInputActive = false"
+                      @input="filterDropdownOptions('cst')"
+                  >
+                  <div 
+                      class="absolute right-1 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center cursor-pointer text-gray-500 hover:text-blue-500"
+                      @mousedown.prevent="loadDropdownData('cst')"
+                  >
+                      <span class="text-[10px]">▼</span>
+                  </div>
+                  <div v-if="showCstDropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-48 overflow-y-auto text-xs">
+                      <div v-for="c in selectOptions.cst" :key="c" class="px-2 py-1 hover:bg-blue-100 cursor-pointer" @mousedown.prevent="selectOption('cst', c)">{{ c }}</div>
+                      <div v-if="!selectOptions.cst || selectOptions.cst.length === 0" class="px-2 py-1 text-gray-400">暂无数据</div>
+                  </div>
+              </div>
+          </div>
+
+          <div class="flex items-center text-xs text-gray-700">
+              <span class="mr-1 font-medium">Lot:</span>
+              <div class="relative">
+                  <input 
+                      type="text" 
+                      v-model="selectedInfo.lot" 
+                      class="bg-gray-100 border border-gray-300 rounded text-xs py-0.5 pr-6 pl-2 focus:border-blue-500 w-48"
+                      placeholder="输入或选择"
+                      @keyup.enter="onCstLotChange('lot')"
+                      @focus="hideDropdown('lot'); isInputActive = true"
+                      @blur="handleBlur('lot'); isInputActive = false"
+                      @input="filterDropdownOptions('lot')"
+                  >
+                  <div 
+                      class="absolute right-1 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center cursor-pointer text-gray-500 hover:text-blue-500"
+                      @mousedown.prevent="loadDropdownData('lot')"
+                  >
+                      <span class="text-[10px]">▼</span>
+                  </div>
+                  <div v-if="showLotDropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-48 overflow-y-auto text-xs">
+                      <div v-for="l in selectOptions.lots" :key="l" class="px-2 py-1 hover:bg-blue-100 cursor-pointer" @mousedown.prevent="selectOption('lot', l)">{{ l }}</div>
+                      <div v-if="!selectOptions.lots || selectOptions.lots.length === 0" class="px-2 py-1 text-gray-400">暂无数据</div>
+                  </div>
+              </div>
+          </div>
+
+          <div class="flex items-center text-xs text-gray-700">
+              <span class="mr-1 font-medium">WorkOrder:</span>
+              <div class="relative">
+                  <input v-if="!isReadonly" type="text" v-model="selectedInfo.productrequestname" readonly class="bg-gray-100 border border-gray-300 rounded text-xs py-1 px-1 focus:border-blue-500 w-32 cursor-not-allowed">
+                  <select v-else v-model="selectedInfo.productrequestname" @change="handleWorkOrderChange" class="bg-gray-100 border border-gray-300 rounded text-xs py-1 px-1 focus:border-blue-500 w-32">
+                      <option v-for="wr in selectOptions.productRequests" :key="wr" :value="wr">{{ wr }}</option>
+                  </select>
+              </div>
+          </div>
+
+          <div class="flex items-center text-xs text-gray-700">
+              <span class="mr-1 font-medium">Product:</span>
+              <div class="relative">
+                  <input v-if="!isReadonly" type="text" v-model="selectedInfo.product" readonly class="bg-gray-100 border border-gray-300 rounded text-xs py-0.5 px-1 focus:border-blue-500 w-44 cursor-not-allowed">
+              <select v-else v-model="selectedInfo.product" @change="handleProductChange" class="bg-gray-100 border border-gray-300 rounded text-xs py-0.5 px-1 focus:border-blue-500 w-44">
+                      <option v-for="ps in selectOptions.productSpecs" :key="ps" :value="ps">{{ ps }}</option>
+                  </select>
+              </div>
+          </div>
+          
+          <div class="flex items-center text-xs text-gray-700">
+              <span class="mr-1 font-medium">OPER:</span>
+              <div class="relative">
+                  <input v-if="!isReadonly" type="text" v-model="selectedInfo.processOperationName" readonly class="bg-gray-100 border border-gray-300 rounded text-xs py-0.5 px-1 focus:border-blue-500 w-20 cursor-not-allowed">
+              <select v-else v-model="selectedInfo.processOperationName" @change="handleOperChange" class="bg-gray-100 border border-gray-300 rounded text-xs py-0.5 px-1 focus:border-blue-500 w-20">
+                      <option v-for="op in selectOptions.processOperations" :key="op" :value="op">{{ op }}</option>
+                  </select>
+              </div>
+          </div>
         </div>
-        
-        <!-- 默认Ready状态 -->
-        <span v-else>Ready</span>
-        
-        <!-- 帮助按钮 -->
-        <button 
-          @click="showHelpModal = true"
-          class="text-xs text-blue-600 hover:text-blue-800 hover:underline flex items-center space-x-1 cursor-pointer"
-          title="系统操作说明"
-        >
-          <i class="fa-solid fa-circle-question"></i>
-        </button>
       </div>
     </header>
+
+
+
 
     <main class="flex-1 flex overflow-hidden">
       
@@ -232,7 +209,10 @@
             >
               <span class="w-4 text-center mr-2 text-gray-600">{{ code.levelno }}</span>
               <div class="w-3 h-3 rounded-full mr-2 shadow-sm" :style="{background: code.color}"></div>
-              <span class="flex-1 text-left">{{ code.name }}</span>
+              <span class="flex-1 text-left">
+                {{ code.name }}
+                <i v-if="code.hasRemark" class="fa-solid fa-pen-to-square text-[10px] text-red-500 ml-1" title="需要填写备注"></i>
+              </span>
               <span 
                 :class="['text-[10px] px-1.5 py-0.5 rounded font-mono ml-1', 
                   {'text-red-600 bg-red-100': code.needSymmetry}, 
@@ -310,7 +290,23 @@
             >
               叠加
             </button>
-            <span class="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">{{ visibleDefects.length }}</span>
+            <button 
+              v-if="!isReadonly && hasNormalStatus" 
+              :class="['px-2 py-1 rounded text-xs font-medium transition-colors',
+                'bg-green-600 text-white font-bold cursor-default']"
+              title="已标记为无缺陷"
+            >
+              正常
+            </button>
+            <span v-else-if="!isReadonly && visibleDefects.length === 0 && showAllDefects" 
+              @click="toggleNoDefectStatus"
+              :class="['px-2 py-1 rounded text-xs font-medium transition-colors cursor-pointer',
+                'bg-gray-200 text-gray-700 hover:bg-gray-300']"
+              title="点击标记为无缺陷"
+            >
+              无缺陷
+            </span>
+            <span v-else class="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 shadow-sm">{{ visibleDefects.length }}</span>
           </div>
         </div>
 
@@ -331,6 +327,7 @@
                   </span> 
                   
                   <i v-if="record.isSymmetry" class="fa-solid fa-clone text-[10px] text-orange-400 ml-1" title="自动对称点"></i>
+                  <i v-if="defectCodes.find(c => c.id === record.code)?.hasRemark && !record.remark" class="fa-solid fa-pen-to-square text-[10px] text-red-500 ml-1 animate-pulse" title="需要填写备注"></i>
                 </div>
                 <div class="text-[10px] text-gray-400 font-mono mt-0.5 truncate">
                   <span v-if="record.type === 'POINT' || record.type === 'point' || record.type === 'mask'">
@@ -361,7 +358,7 @@
               </button>
             </div>
 
-            <div v-if="record.isEditing || record.remark" class="px-3 pb-2 bg-gray-50/50">
+            <div v-if="record.isEditing || record.remark" :data-uuid="record.uuid" class="px-3 pb-2 bg-gray-50/50">
               <input 
                 v-if="record.isEditing && !isReadonly"
                 v-model="record.remark"
@@ -426,12 +423,14 @@
               <ul class="list-disc pl-5 text-sm text-gray-700 space-y-1">
                 <li>玻璃缺陷标注与管理</li>
                 <li>多种缺陷类型支持（点缺、线缺、曲线、面缺）</li>
-                <li>缺陷代码分类与过滤,并支持键盘输入数字定位</li>
+                <li>缺陷代码分类与过滤，并支持键盘输入数字定位</li>
+                <li>特定代码强制必须输入备注</li>
                 <li>缺陷数据自动保存</li>
                 <li>自动计算MASK SHOT位置,显示SHOT边缘线</li>
                 <li>Mask缺陷的对称点自动提示</li>
                 <li>碰撞检测,根据绘制轨迹计算影响的panelID</li>
                 <li>从其他Glass复制缺陷</li>
+                <li>对没有检测出缺陷的Glass，也支持记录</li>
               </ul>
             </section>
             
@@ -441,26 +440,38 @@
                 操作指南
               </h4>
               <div class="space-y-4">
-                 <div>
+                <div>
                   <h5 class="text-sm font-medium text-gray-700 mb-1">首次操作</h5>
-                  <p class="text-xs text-gray-600 pl-4">请选择设备编号,后续操作将自动加载该设备。</p>
+                  <p class="text-xs text-gray-600 pl-4">请选择设备编号, 后续操作将自动加载该设备。</p>
+                  <p class="text-xs text-gray-600 pl-4">本系统以glass中心为原点(0,0), 确认设备上坐标系需要保持一致。</p>
+                </div>
+                <div>
+                  <h5 class="text-sm font-medium text-gray-700 mb-1">检测参数设置</h5>
+                  <p class="text-xs text-gray-600 pl-4 mb-1">在开始标注前，请完成以下参数设置：</p>
+                  <ul class="list-disc pl-8 text-xs text-gray-600 space-y-1">
+                    <li><span class="font-medium">检测人员(Inspector)</span>：点击下拉框选择参与检测的人员，可多选</li>
+                    <li><span class="font-medium">检测类型(InspType)</span>：选择本次检测的类型，首检，过程检，异常加测，测膜边</li>
+                    <li><span class="font-medium">检测CST或Lot</span>：下拉选择或输入CST/LOT,下拉列表数据来源于MAC站点的Lot列表 </li>
+                  </ul>
                 </div>
                 <div>
                   <h5 class="text-sm font-medium text-gray-700 mb-1">标注缺陷</h5>
-                  <p class="text-xs text-gray-600 pl-4">1、选择或输入CST/LOT, 再选择GlassID</p>
+                  <p class="text-xs text-gray-600 pl-4">1、在Glass列表中, 选择GlassID</p>
                   <p class="text-xs text-gray-600 pl-4">2、选择需要标注的缺陷Code</p>
                   <ul class="list-disc pl-8 text-xs text-gray-600 space-y-1">
                     <li>滚动列表选择缺陷Code</li>
                     <li>支持点击缺陷类型进行过滤</li>
                     <li>支持键盘输入数字进行定位</li>
                   </ul>
-                  <p class="text-xs text-gray-600 pl-4">3、在中间画布区域点击或绘制缺陷：</p>
+                  <p class="text-xs text-gray-600 pl-4 mt-1">3、<span class="font-medium text-red-600">注意：带有<i class="fa-solid fa-pen-to-square text-red-500 mx-0.5"></i>标记的缺陷代码必须填写备注</span>，否则无法切换到其他操作</p>
+                  <p class="text-xs text-gray-600 pl-4">4、在中间画布区域点击或绘制缺陷：</p>
                   <ul class="list-disc pl-8 text-xs text-gray-600 space-y-1">
-                    <li>点缺：直接点击即可。mask类型会自动提示对称点</li>
+                    <li>点缺：直接点击即可。mask类型会自动提示对称点, 需要点击才会记录缺陷</li>
                     <li>线缺：点击并拖动绘制线段</li>
                     <li>曲线：点击并拖动绘制自由曲线</li>
                     <li>面缺：点击并拖动绘制封闭区域</li>
                   </ul>
+                  <p class="text-xs text-gray-600 pl-4">5、若没有发现缺陷,则在右侧缺陷记录处点击"无缺陷"按钮</p>
                 </div>
                 <div>
                   <h5 class="text-sm font-medium text-gray-700 mb-1">管理缺陷</h5>
@@ -483,7 +494,7 @@
               <ul class="list-disc pl-5 text-sm text-gray-700 space-y-1">
                 <li>确保选择或输入正确的CST和Lot信息</li>
                 <li>缺陷标注后会自动保存到系统</li>
-                <li>如果Layout未加载，请联系TEST组在ADC系统导入</li>
+                <li>如果Layout未加载或图形错误，请联系TEST组在ADC系统导入或修正</li>
                 <li>如果Mask Shot边缘线未加载或错误，请联系PHT在TAQ1831报表中查询并修正</li>
                 <li>只读权限用户只能查看缺陷，无法编辑</li>
                 <li>使用完成后请及时退出系统</li>
@@ -510,7 +521,7 @@
 import { ref, reactive, onMounted, onUnmounted, computed, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import CanvasStage from '../components/CanvasStage.vue'
-import api, { getInitData, getGlassList, getReasonCodeList, getDefects, saveDefectRecord, getRelatedInfoByCstOrLot, filterOptionsByOper, getMachineByIp, getDefectsByLot } from '../services/api'
+import api, { getInitData, getGlassList, getReasonCodeList, getDefects, saveDefectRecord, deleteDefectRecord, getRelatedInfoByCstOrLot, filterOptionsByOper, getMachineByIp, getDefectsByLot, getProcessOperationsByLot } from '../services/api'
 
 // 创建路由实例，用于获取URL参数
 const route = useRoute()
@@ -531,7 +542,9 @@ const selectOptions = reactive({
     lotFull: [], // 存储完整的LOT数据，用于过滤
     cstFull: [], // 存储完整的CST数据，用于过滤
     eqs: [],
-    processOperations: []
+    processOperations: [],
+    productRequests: [],
+    productSpecs: []
 });
 const selectedInfo = reactive({
     product: '',
@@ -540,8 +553,50 @@ const selectedInfo = reactive({
     cst: '',
     processOperationName: '',
     productrequestname: '',
-    operatorId: ''
+    operatorId: '',
+    availableInspectors: [],
+    inspectionType: '首检',
+    selectedInspectors: []
 });
+
+// Unicode Hex 解码函数 (针对 [5f20] 这种格式)
+const decodeUnicodeFromHex = (hexStr) => {
+  try {
+    let result = '';
+    // 每4位十六进制转换为1个字符 (Unicode)
+    for (let i = 0; i < hexStr.length; i += 4) {
+      const charCode = parseInt(hexStr.substr(i, 4), 16);
+      if (!isNaN(charCode)) {
+        result += String.fromCharCode(charCode);
+      }
+    }
+    return result;
+  } catch (e) {
+    console.error('Unicode解码失败:', e);
+    return '';
+  }
+};
+
+const parseInspectorNames = (inspectorParam) => {
+  if (!inspectorParam) return [];
+  
+  // 先进行 URL 解码
+  let decodedParam = inspectorParam;
+  try {
+    decodedParam = decodeURIComponent(inspectorParam);
+  } catch (e) {
+    console.warn('URL 解码失败,使用原始参数:', e);
+  }
+  
+  // 分割多个 Inspector (逗号分隔)
+  const names = decodedParam.split(',');
+  
+  // 解析每个 Inspector 的 Unicode 编码
+  return names.map(name => {
+    const hexStr = name.replace(/\[|\]/g, '');
+    return decodeUnicodeFromHex(hexStr);
+  }).filter(name => name);
+};
 
 // 缺陷代码
 const defectCodes = ref([]);
@@ -576,6 +631,7 @@ const showCstDropdown = ref(false); // 控制CST下拉列表显示
 const showLotDropdown = ref(false); // 控制Lot下拉列表显示
 const hasLayout = ref(true); // 新增：控制layout状态，默认有layout
 const showHelpModal = ref(false); // 新增：控制帮助模态框显示
+const showInspectorDropdown = ref(false); // 控制Inspector下拉菜单显示
 
 // 全局数字输入定位缺陷相关变量
 const isInputActive = ref(false); // 当前是否有活跃输入框
@@ -594,6 +650,18 @@ const showMessage = (message, type = 'success', duration = 1500) => {
   setTimeout(() => {
     saveMessage.value = '';
   }, displayDuration);
+};
+
+// 切换Inspector选择
+const toggleInspector = (inspector) => {
+  const index = selectedInfo.selectedInspectors.indexOf(inspector);
+  if (index > -1) {
+    // 移除选择
+    selectedInfo.selectedInspectors.splice(index, 1);
+  } else {
+    // 添加选择
+    selectedInfo.selectedInspectors.push(inspector);
+  }
 };
 
 // 缓存配置
@@ -766,12 +834,38 @@ const getFullDefectInfo = (record) => {
   return info
 };
 
-// 计算属性：获取可见的缺陷
+// 检查是否存在"正常"标记
+const hasNormalStatus = computed(() => {
+  return currentDefects.value.some(d => d.code === '正常');
+});
+
+// 检查是否有需要备注但未填写备注的记录
+const needRemarkRecords = computed(() => {
+  return currentDefects.value.filter(record => {
+    if (!record.remark || !record.remark.trim()) {
+      const code = defectCodes.value.find(c => c.id === record.code);
+      return code && code.hasRemark;
+    }
+    return false;
+  });
+});
+
+// 检查是否有未填写备注的记录
+const checkNeedRemark = () => {
+  if (needRemarkRecords.value.length > 0) {
+    showMessage('请先填写备注', 'error');
+    return false;
+  }
+  return true;
+};
+
+// 计算属性：获取可见的缺陷（过滤掉“正常”标记）
 const visibleDefects = computed(() => {
+  const filtered = currentDefects.value.filter(d => d.code !== '正常');
   if (showAllDefects.value) {
-    return currentDefects.value;
+    return filtered;
   } else {
-    return currentDefects.value.filter(d => d.code === selectedCode.value.id);
+    return filtered.filter(d => d.code === selectedCode.value.id);
   }
 });
 
@@ -807,6 +901,55 @@ const getDefectiveGlasses = () => {
   return defectiveList;
 };
 
+// 保存“无缺陷/正常”标记
+const saveNormalRecord = async () => {
+  if (!currentGlassId.value || !selectedInfo.processOperationName) return;
+
+  const normalRecord = {
+    uuid: `normal-${currentGlassId.value}-${Date.now()}`,
+    glass_id: currentGlassId.value,
+    lotname: selectedInfo.lot || '',
+    productrequestname: selectedInfo.productrequestname || '',
+    product_id: selectedInfo.product || '',
+    defect_code: '正常',
+    defect_type: '正常',
+    geom_data: [], // 空坐标数组，避免panel验证
+    panel_id: '',
+    is_symmetry: 'N',
+    remark: '系统标记: 无缺陷',
+    operator_id: selectedInfo.operatorId || '',
+    inspector: selectedInfo.selectedInspectors.join(',') || '',
+    machinename: selectedInfo.eq || '',
+    processoperationname: selectedInfo.processOperationName || '',
+    inspection_type: selectedInfo.inspectionType || '首检'
+  };
+
+  const result = await saveDefect(normalRecord);
+  if (result.success) {
+    // 确保本地 currentDefects 中只有一个“正常”
+    currentDefects.value = currentDefects.value.filter(d => d.code !== '正常');
+    currentDefects.value.push({
+      uuid: normalRecord.uuid,
+      code: '正常',
+      type: '正常',
+      path: [], // 空坐标数组
+      remark: '无缺陷',
+      isModified: false
+    });
+    // 更新缓存和 dbData
+    dbData.value[currentGlassId.value] = currentDefects.value;
+    setCache(currentGlassId.value, selectedInfo.processOperationName, currentDefects.value);
+    autoSaveStatus.value = true;
+    setTimeout(() => { autoSaveStatus.value = false; }, 1000);
+  }
+};
+
+// 切换“无缺陷”状态
+const toggleNoDefectStatus = async () => {
+  if (isReadonly.value) return;
+  await saveNormalRecord();
+};
+
 // 从指定Glass复制缺陷到当前Glass
 const copyDefectsFromGlass = async (sourceGlassId) => {
   try {
@@ -839,15 +982,63 @@ const copyDefectsFromGlass = async (sourceGlassId) => {
 // 切换Glass
 // 切换缺陷代码
 const switchCode = (code) => {
+  // 检查是否有未填写备注的记录
+  if (!checkNeedRemark()) {
+    return;
+  }
   selectedCode.value = code;
 };
 
 // 添加缺陷
-const addDefect = (rec) => {
+const addDefect = async (rec) => {
+  // 检查是否有未填写备注的记录
+  if (!checkNeedRemark()) {
+    return;
+  }
+  
+  // 如果当前是“无缺陷”状态，则移除该标记
+  if (hasNormalStatus.value) {
+    const normalDefect = currentDefects.value.find(d => d.code === '正常');
+    if (normalDefect) {
+      try {
+        await deleteDefectRecord(normalDefect.uuid);
+      } catch (e) {
+        console.error('删除正常记录失败:', e);
+      }
+      currentDefects.value = currentDefects.value.filter(d => d.code !== '正常');
+    }
+  }
+
   // 标记为已修改
   rec.isModified = true;
   currentDefects.value.push(rec);
   triggerAutoSave();
+
+  // 如果该缺陷code需要备注，自动聚焦备注框
+  const defectCode = defectCodes.value.find(c => c.id === rec.code);
+  if (defectCode && defectCode.hasRemark) {
+    rec.isEditing = true;
+    
+    // 使用setTimeout确保DOM完全更新后再聚焦
+    setTimeout(() => {
+      // 优先使用ref引用聚焦
+      if (inputRefs.value[rec.uuid]) {
+        inputRefs.value[rec.uuid].focus();
+      } else {
+        // 备选方案1：使用querySelector聚焦
+        const inputEl = document.querySelector(`[data-uuid="${rec.uuid}"] input`);
+        if (inputEl) {
+          inputEl.focus();
+        } else {
+          // 备选方案2：直接查找所有编辑状态的输入框
+          const editingInputs = document.querySelectorAll('.border-blue-300');
+          if (editingInputs.length > 0) {
+            editingInputs[editingInputs.length - 1].focus();
+          }
+        }
+      }
+    }, 100);
+  }
 };
 
 // 移除缺陷
@@ -861,7 +1052,7 @@ const removeDefect = async (uuid) => {
   try {
     // 先从数据库中删除
     // 使用api对象调用，自动添加/mac/前缀，uuid已包含defect-前缀
-    await api.delete(`/api/v1/defect/${uuid}`);
+    await deleteDefectRecord(uuid);
     
     // 只有API成功后，才从当前列表中移除
     currentDefects.value = currentDefects.value.filter(d => d.uuid !== uuid);
@@ -971,10 +1162,17 @@ const scrollToDefect = (levelno) => {
 
 // 切换Glass
 const switchGlass = async (id) => {
+  // 检查是否有未填写备注的记录
+  if (!checkNeedRemark()) {
+    return;
+  }
+  
   currentGlassId.value = id;
-  // 传入最新的processOperationName，确保使用正确的值
-  await loadGlassDefects(id, true, selectedInfo.processOperationName);
-  // 更新有缺陷的Glass列表
+  if (isReadonly.value) {
+    currentDefects.value = dbData.value[id] || [];
+  } else {
+    await loadGlassDefects(id, true, selectedInfo.processOperationName);
+  }
   defectiveGlasses.value = getDefectiveGlasses();
 };
 
@@ -1088,8 +1286,10 @@ const triggerAutoSave = async () => {
         is_symmetry: defect.isSymmetry ? 'Y' : 'N',
         remark: defect.remark || '',
         operator_id: selectedInfo.operatorId || '',
+        inspector: selectedInfo.selectedInspectors.join(',') || '',
         machinename: selectedInfo.eq || '',
-        processoperationname: selectedInfo.processOperationName || ''
+        processoperationname: selectedInfo.processOperationName || '',
+        inspection_type: selectedInfo.inspectionType || '首检'
       };
       
       // 保存单个缺陷记录
@@ -1286,7 +1486,8 @@ const loadDefectCodes = async () => {
         color: code.COLOR || '#FF0000',
         needSymmetry: codeType === 'mask', // 如果codetype是mask，则needSymmetry为true
         type: codeType, // 使用小写的codetype
-        levelno: code.LEVELNO || 0 // 添加levelno字段
+        levelno: code.LEVELNO || 0, // 添加levelno字段
+        hasRemark: code.HAS_REMARK === 'Y' // 是否需要备注
       };
     });
     // 按levelno递增排序
@@ -1435,10 +1636,56 @@ const filterDropdownOptions = (field) => {
 
 // 处理CST或Lot变化事件
 const onCstLotChange = async (changedField) => {
+  // 如果是用户主动切换CST或Lot，检查是否有未填写备注的记录
+  if (changedField && !checkNeedRemark()) {
+    return;
+  }
+  
   try {
     const { cst, lot } = selectedInfo;
     let params = {};
     
+    // 只读权限时，只处理lot输入，直接调用process-operations接口
+    if (isReadonly.value) {
+      if (changedField === 'lot' && lot) {
+        loading.value = true;
+        const lotData = await getProcessOperationsByLot(lot);
+        if (lotData) {
+          if (lotData.processOperations && lotData.processOperations.length > 0) {
+            selectOptions.processOperations = lotData.processOperations;
+            selectedInfo.processOperationName = lotData.processOperations[0];
+          }
+          if (lotData.productRequests && lotData.productRequests.length > 0) {
+            selectOptions.productRequests = lotData.productRequests;
+            selectedInfo.productrequestname = lotData.productRequests[0];
+          }
+          if (lotData.productSpecs && lotData.productSpecs.length > 0) {
+            selectOptions.productSpecs = lotData.productSpecs;
+            selectedInfo.product = lotData.productSpecs[0];
+          }
+          if (lotData.glasses && lotData.glasses.length > 0) {
+            glassList.value = lotData.glasses.map(g => ({ id: g }));
+            if (lotData.glasses.length > 0) {
+              currentGlassId.value = lotData.glasses[0];
+            }
+          }
+          if (lotData.machines && lotData.machines.length > 0) {
+            selectedInfo.eq = lotData.machines[0];
+          }
+          if (lotData.operators && lotData.operators.length > 0) {
+            selectedInfo.operatorId = lotData.operators[0];
+          }
+          
+          // 加载第一个glass的缺陷
+          if (currentGlassId.value) {
+            await loadGlassDefects(currentGlassId.value, true, selectedInfo.processOperationName);
+          }
+        }
+      }
+      return;
+    }
+    
+    // 非只读权限，原有逻辑
     // 根据触发事件的字段，只传递该字段的值
     if (changedField === 'cst' && cst) {
       params = { cst };
@@ -1549,6 +1796,62 @@ const handleMachineChange = () => {
   localStorage.setItem('machine', selectedInfo.eq);
 };
 
+// 处理OPER下拉选择变化事件（只读权限时）
+const handleOperChange = async () => {
+  if (isReadonly.value && selectedInfo.lot) {
+    loading.value = true;
+    try {
+      const defects = await getDefectsByLot(selectedInfo.lot, selectedInfo.processOperationName);
+      if (defects && defects.length > 0) {
+        const defectsByGlass = {};
+        for (const defect of defects) {
+          const glassId = defect.productname || defect.glassId;
+          if (!defectsByGlass[glassId]) {
+            defectsByGlass[glassId] = [];
+          }
+          defectsByGlass[glassId].push(defect);
+        }
+        
+        for (const glass of glassList.value) {
+          const glassId = glass.id;
+          const glassDefects = defectsByGlass[glassId] || [];
+          dbData.value[glassId] = glassDefects;
+          if (glassId === currentGlassId.value) {
+            currentDefects.value = glassDefects;
+          }
+        }
+        defectiveGlasses.value = getDefectiveGlasses();
+      } else {
+        for (const glass of glassList.value) {
+          dbData.value[glass.id] = [];
+        }
+        currentDefects.value = [];
+        defectiveGlasses.value = [];
+      }
+    } catch (err) {
+      console.error('加载缺陷失败:', err);
+    } finally {
+      loading.value = false;
+    }
+  } else if (currentGlassId.value) {
+    await loadGlassDefects(currentGlassId.value, true, selectedInfo.processOperationName);
+  }
+};
+
+// 处理WorkOrder下拉选择变化事件（只读权限时）
+const handleWorkOrderChange = async () => {
+  if (currentGlassId.value) {
+    await loadGlassDefects(currentGlassId.value, true, selectedInfo.processOperationName);
+  }
+};
+
+// 处理Product下拉选择变化事件（只读权限时）
+const handleProductChange = async () => {
+  if (currentGlassId.value) {
+    await loadGlassDefects(currentGlassId.value, true, selectedInfo.processOperationName);
+  }
+};
+
 // 计算属性：判断是否有存储的Machine值
 const hasStoredMachine = computed(() => {
   return localStorage.getItem('machine') !== null;
@@ -1568,13 +1871,35 @@ onMounted(async () => {
   // 从URL中获取userrole参数
   userrole.value = route.query.userrole || '';
   
+  // 从URL中获取inspector参数，解析检测人员姓名
+  const inspectorParam = route.query.inspector;
+  if (inspectorParam) {
+    const inspectorNames = parseInspectorNames(inspectorParam);
+    if (inspectorNames.length > 0) {
+      selectedInfo.availableInspectors = inspectorNames;
+      selectedInfo.selectedInspectors = [];
+    }
+  }
+  
   // 添加全局键盘事件监听
   window.addEventListener('keydown', handleKeydown);
+  
+  // 添加点击外部关闭下拉的事件监听
+  document.addEventListener('click', handleClickOutside);
 });
+
+// 点击外部关闭下拉
+const handleClickOutside = (event) => {
+  if (!event.target.closest('.inspector-dropdown-container')) {
+    showInspectorDropdown.value = false;
+  }
+};
 
 // 组件销毁时移除事件监听
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown);
+  // 移除点击外部关闭下拉的事件监听
+  document.removeEventListener('click', handleClickOutside);
   // 清除计时器
   if (digitTimer) {
     clearTimeout(digitTimer);

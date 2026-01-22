@@ -213,8 +213,8 @@ async def get_reasoncodes(
 ):
     """获取缺陷代码信息，返回REASONCODE表数据"""
     try:
-        # 查询所有缺陷类型信息，添加REASONCODETYPE条件
-        defect_types = db.query(DefectType).filter(DefectType.reasoncodetype == 'GLASSCODE').all()
+        # 查询所有可用的玻璃缺陷类型信息
+        defect_types = DefectType.glass_codes(db)
         
         # 构建返回数据，移除EQTYPE字段
         result = []
@@ -224,7 +224,8 @@ async def get_reasoncodes(
                 "DESCREPTION": dt.description,
                 "CODETYPE": dt.codetype,
                 "COLOR": dt.color,
-                "LEVELNO": dt.levelno
+                "LEVELNO": dt.levelno,
+                "HAS_REMARK": dt.has_remark
             })
         
         return result

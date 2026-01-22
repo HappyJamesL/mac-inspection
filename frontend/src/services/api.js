@@ -130,6 +130,15 @@ export const getDefectsByLot = async (lotname, processOperationName = '') => {
   }
 };
 
+// 根据Lot获取该批次下所有工序站点名称
+export const getProcessOperationsByLot = async (lotname) => {
+  try {
+    return await api.get(`/api/v1/lots/${lotname}/process-operations`);
+  } catch (error) {
+    return [];
+  }
+};
+
 // 保存缺陷记录
 export const saveDefectRecord = async (defectRecord) => {
   // 转换前端数据格式为后端期望的格式
@@ -151,7 +160,9 @@ export const saveDefectRecord = async (defectRecord) => {
     remark: defectRecord.remark,
     operator_id: defectRecord.operator_id,
     machinename: defectRecord.machinename,
-    processoperationname: defectRecord.processoperationname
+    processoperationname: defectRecord.processoperationname,
+    inspection_type: defectRecord.inspection_type || defectRecord.inspectionType || '首检', // 添加inspection_type字段，支持两种命名方式
+    inspector: defectRecord.inspector // 添加inspector字段，确保检测人员信息正确传递
   };
   
   // 发送请求，使用完整的/api/v1前缀
@@ -206,6 +217,15 @@ export const checkPermission = async (userrole) => {
   } catch (error) {
     console.error('权限验证失败:', error);
     return { allowed: false };
+  }
+};
+
+// 删除缺陷记录
+export const deleteDefectRecord = async (uuid) => {
+  try {
+    return await api.delete(`/api/v1/defect/${uuid}`);
+  } catch (error) {
+    throw error;
   }
 };
 

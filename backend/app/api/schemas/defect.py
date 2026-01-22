@@ -67,8 +67,10 @@ class DefectSaveRequest(BaseModel):
     is_symmetry: Optional[str] = Field("N", description="是否为 Mask 对称缺陷产生的记录")
     remark: Optional[str] = Field(None, description="备注")
     operator_id: Optional[str] = Field(None, description="操作员ID")
+    inspector: Optional[str] = Field(None, description="检测人员姓名（多个用逗号分隔）")
     machinename: Optional[str] = Field(None, description="机器名称")
     processoperationname: Optional[str] = Field(None, description="工序站点名称")
+    inspection_type: Optional[str] = Field("首检", description="检测类型: 首检, 过程检, 异常加测, 测膜边")
 
 
 class DefectSaveResponse(BaseModel):
