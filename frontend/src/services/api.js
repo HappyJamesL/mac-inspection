@@ -92,12 +92,31 @@ export const getGlassList = async (lotname) => {
 };
 
 // 获取Glass缺陷记录
-export const getDefects = async (glassId, processOperationName = '', isHistorical = false) => {
+export const getDefects = async (glassId, processOperationName = '', isHistorical = false, startTime = '', endTime = '', machinename = null, defect_code = null) => {
   try {
     // 构建查询参数
     const params = {};
     if (processOperationName) {
-      params.processoperationname = processOperationName;
+      // 如果是数组，转换为逗号分隔字符串
+      params.processoperationname = Array.isArray(processOperationName) ? processOperationName.join(',') : processOperationName;
+    }
+    
+    // 如果是历史数据查询，添加时间参数
+    if (isHistorical) {
+      if (startTime) {
+        params.start_time = startTime;
+      }
+      if (endTime) {
+        params.end_time = endTime;
+      }
+      if (machinename && machinename.length > 0) {
+        // 如果是数组，转换为逗号分隔字符串
+        params.machinename = Array.isArray(machinename) ? machinename.join(',') : machinename;
+      }
+      if (defect_code && defect_code.length > 0) {
+        // 如果是数组，转换为逗号分隔字符串
+        params.defect_code = Array.isArray(defect_code) ? defect_code.join(',') : defect_code;
+      }
     }
     
     // 根据是否为历史数据选择不同的API端点
@@ -112,8 +131,8 @@ export const getDefects = async (glassId, processOperationName = '', isHistorica
 };
 
 // 获取历史Glass缺陷记录
-export const getHistoricalDefects = async (glassId, processOperationName = '') => {
-  return getDefects(glassId, processOperationName, true);
+export const getHistoricalDefects = async (glassId, processOperationName = '', startTime = '', endTime = '', machinename = null, defect_code = null) => {
+  return getDefects(glassId, processOperationName, true, startTime, endTime, machinename, defect_code);
 };
 
 // 根据Lot获取所有Glass的缺陷记录

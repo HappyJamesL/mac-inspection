@@ -17,7 +17,7 @@
 import { ref, reactive, onMounted, watch, nextTick } from 'vue'
 import Konva from 'konva'
 // 请确保路径正确
-import { getProductLayout } from '../services/api'
+import api from '../services/api'
 
 // --- Props & Emits ---
 const props = defineProps({
@@ -26,7 +26,9 @@ const props = defineProps({
   selectedProductId: { type: String, default: '' },
   defectCodes: { type: Array, default: () => [] },
   readonly: { type: Boolean, default: false },
-  currentGlassId: { type: String, default: '' }
+  currentGlassId: { type: String, default: '' },
+  isHistorical: { type: Boolean, default: false },
+  selectedDefectUuid: { type: String, default: '' }
 })
 
 const emit = defineEmits(['add-defect', 'update-defects', 'layout-status-change'])
@@ -798,14 +800,25 @@ const redrawVisibleDefects = () => {
     const color = props.defectCodes.find(c => c.id === d.code)?.color || '#fff';
     const pts = d.path ? d.path.flatMap(p => [toScreen(p.x), toScreenY(p.y)]) : [];
     const defectType = d.type?.toUpperCase();
+    const isSelected = d.uuid === props.selectedDefectUuid;
     
     if (defectType === 'POINT' || defectType === 'MASK') {
       defectLayer.add(new Konva.Circle({
-        x: pts[0], y: pts[1], radius: 5, fill: color, stroke: d.isSymmetry ? 'yellow' : 'white', strokeWidth: 1.5
+        x: pts[0], 
+        y: pts[1], 
+        radius: isSelected ? 8 : 5, 
+        fill: color, 
+        stroke: isSelected ? 'yellow' : (d.isSymmetry ? 'yellow' : 'white'), 
+        strokeWidth: isSelected ? 2.5 : 1.5
       }));
     } else {
       defectLayer.add(new Konva.Line({
-        points: pts, stroke: color, strokeWidth: 2, closed: defectType === 'REGION' || defectType === 'AREA', fill: (defectType === 'REGION' || defectType === 'AREA') ? color + '40' : undefined
+        points: pts, 
+        stroke: color, 
+        strokeWidth: isSelected ? 3 : 2, 
+        closed: defectType === 'REGION' || defectType === 'AREA', 
+        fill: (defectType === 'REGION' || defectType === 'AREA') ? color + '40' : undefined,
+        strokeScaleEnabled: false
       }));
     }
   });
@@ -1169,7 +1182,12 @@ const loadPanelData = async () => {
   if (!props.selectedProductId) return;
   loading.value = true;
   try {
-    const data = await getProductLayout(props.selectedProductId);
+    // 根据isHistorical属性决定调用哪个接口
+    const endpoint = props.isHistorical 
+      ? `/api/v1/historical/${props.selectedProductId}/layout` 
+      : `/api/v1/product/${props.selectedProductId}/layout`;
+    
+    const data = await api.get(endpoint);
     // 添加默认值，确保玻璃尺寸始终有效
     glassConfig.size = data.glass_size || { w: 920000, h: 730000 };
     glassConfig.panels = data.panels || [];
@@ -1191,6 +1209,7 @@ const loadPanelData = async () => {
 
 watch(() => props.selectedProductId, loadPanelData);
 watch(() => props.currentDefects, redrawVisibleDefects, { deep: true });
+watch(() => props.selectedDefectUuid, redrawVisibleDefects);
 
 // 监听selectedCode变化，清除对称点提示
 watch(() => props.selectedCode, () => {

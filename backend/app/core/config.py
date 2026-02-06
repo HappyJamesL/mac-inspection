@@ -26,6 +26,17 @@ class Settings(BaseSettings):
     ORACLE_PORT: Optional[int] = 7013
     ORACLE_SERVICE_NAME: Optional[str] = "DEVUX03"
     
+    # 历史数据库配置
+    HISTORICAL_DATABASE_TYPE: str = "sqlite"  # 支持: sqlite, oracle
+    HISTORICAL_SQLITE_URL: str = "sqlite:///macinsp.db"  # 历史数据SQLite URL
+
+    # Oracle历史数据库配置
+    HISTORICAL_ORACLE_USER: Optional[str] = "D1FAMADM"
+    HISTORICAL_ORACLE_PASSWORD: Optional[str] = "fab#test"
+    HISTORICAL_ORACLE_HOST: Optional[str] = "127.0.0.1"
+    HISTORICAL_ORACLE_PORT: Optional[int] = 7013
+    HISTORICAL_ORACLE_SERVICE_NAME: Optional[str] = "DEVUX03"
+    
     # JWT配置
     SECRET_KEY: str = "your-secret-key-here-please-change-in-production"
     ALGORITHM: str = "HS256"
@@ -48,6 +59,14 @@ class Settings(BaseSettings):
             return f"oracle+cx_oracle://{self.ORACLE_USER}:{self.ORACLE_PASSWORD}@{self.ORACLE_HOST}:{self.ORACLE_PORT}/?service_name={self.ORACLE_SERVICE_NAME}&encoding=UTF-8&nencoding=UTF-8"
         else:  # sqlite
             return self.SQLITE_URL
+    
+    @property
+    def HISTORICAL_DATABASE_URL(self) -> str:
+        """根据数据库类型动态生成历史数据库连接URL"""
+        if self.HISTORICAL_DATABASE_TYPE == "oracle":
+            return f"oracle+cx_oracle://{self.HISTORICAL_ORACLE_USER}:{self.HISTORICAL_ORACLE_PASSWORD}@{self.HISTORICAL_ORACLE_HOST}:{self.HISTORICAL_ORACLE_PORT}/?service_name={self.HISTORICAL_ORACLE_SERVICE_NAME}&encoding=UTF-8&nencoding=UTF-8"
+        else:  # sqlite
+            return self.HISTORICAL_SQLITE_URL
    
     class Config:
         env_file = ".env"
